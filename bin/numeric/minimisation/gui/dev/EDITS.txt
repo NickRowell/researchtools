@@ -1,0 +1,11 @@
+To do:
+
+    To allow graph to update when performing many rapid-fire steps, need to
+    perform call to GNUplot from the event dispatch thread (or something like that...).
+    Must allow one GNUplot process to complete before the next is started.
+
+    Implement 'all steps' button and convergence criteria for solvers.
+
+    Further configure graphs using hints from cost functions (e.g. contour intervals etc)
+
+    Implement more solvers.

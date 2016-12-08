@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns:ivy="antlib:org.apache.ivy.ant" name="ResearchTools" default="main" basedir=".">
+	
+	<!-- Define some convenient properties -->
+	<property name="src.dir"     value="src"/>
+	<property name="build.dir"   value="build"/>
+	<property name="dist.dir"     value="dist"/>
+	<!-- Location of jars retrieved by ivy dependency resolution -->
+	<property name="lib.dir"     value="lib"/>
+
+	
+	<target name="main" depends="clean, resolve, compile, jar" description="Main target">
+        <echo>
+            Building the .jar file.
+        </echo>
+	</target>
+	
+	<target name="resolve" description="--> retrieve dependencies with ivy">
+		<ivy:retrieve/>
+	</target>
+		
+	<!-- clean: delete any existing .class and .jar files etc to clear the way for a fresh compilation
+		 and ensure we're not building using old class files from the last succesful compilation -->
+	<target name="clean">
+	    <delete dir="${build.dir}"/>
+		<delete dir="${dist.dir}"/>
+	</target>
+	
+	<!-- Compile the java source and produce .class files -->
+    <target name="compile" description="Compilation target">
+    	<mkdir dir="${build.dir}"/>
+    	<javac srcdir="${src.dir}" destdir="${build.dir}">
+    		<!-- Add any external jars to the classpath. Could resolve Jama dependency using Ivy. -->
+    		<classpath>
+    	        <!--pathelement path="/opt/jama/Jama-1.0.3.jar"/-->
+    			
+    			
+    			<!-- **** How to include ALL jars in lib directory? -->
+    			<!-- NOTE: ivy is used to retrieve dependencies. Should use eclipse to build the project
+    			           rather than trying to do it manually. -->
+    			<pathelement path="${lib.dir}/jars/jama-1.0.3.jar"/>
+    			
+    			
+    	    </classpath>
+    	</javac>
+    </target>
+  
+	<target name="jar" description="Make the Jar file">
+  		<mkdir dir="${dist.dir}"/>
+  	    <jar destfile="${dist.dir}/${ant.project.name}.jar" basedir="${build.dir}"/>
+  	</target>
+	
+</project>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ivy-module version="2.0">
+  	<info organisation="myorg" module="mymodule" />
+  	
+  	
+  	<dependencies>
+  		<!-- JAMA -->
+  		<dependency org="gov.nist.math" name="jama" rev="1.0.3"/>
+  		
+  		<!-- JFreeChart -->
+  		<dependency org="jfree" name="jfreechart" rev="1.0.12"/>
+  		
+  		<!-- Apache Commons Math -->
+  		<dependency org="org.apache.commons" name="commons-math3" rev="3.6.1">
+  			<artifact name="commons-math3" type="jar" />
+		</dependency>
+		
+  	</dependencies>
+  	
+  	
+</ivy-module>
