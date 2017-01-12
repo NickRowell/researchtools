@@ -11,7 +11,14 @@ import numeric.integration.IntegrableFunction;
 import numeric.integration.IntegrationUtils;
 
 
-
+/**
+ * Class tests the numerical integration algorithm by comparing against the analytical
+ * integral of a known function.
+ *
+ *
+ * @author nrowell
+ * @version $Id$
+ */
 public class TestIntegrationUtils {
 	
 	public static void main(String[] args) throws IOException
@@ -37,22 +44,21 @@ public class TestIntegrationUtils {
 		
 		TestFunction testFunc = new TestFunction();
 		
-		// Step size
-		double h = 0.05;
-		
 		StringBuilder script = new StringBuilder();
 		script.append("set terminal pngcairo size 640,480\n");
-		script.append("set yrange [*:*]\n");
-		script.append("set xlabel 'a'\n");
+		script.append("set yrange [-0.00001:0.00001]\n");
+		script.append("set xlabel 'h'\n");
+		script.append("set ylabel 'Error'\n");
 		script.append("plot '-' w l t 'Analytic-Numerical'\n");
 		
-		for(double a = 0.5; a<10.0; a+=0.1)
+		double a = 0.1;
+		double b = 5.0;
+		
+		for(double h = 1.0; h>0.001; h-=0.001)
 		{
-			// Set up range of integration
-			double b = a+0.5;
 			double analytic = testFunc.getDefiniteIntegral(a, b);
 			double numerical = IntegrationUtils.integrate(testFunc, a, b, h);
-			script.append(a+"\t"+(analytic-numerical)+"\n");
+			script.append(h+"\t"+(analytic-numerical)+"\n");
 		}
 		script.append("e\n");
 		

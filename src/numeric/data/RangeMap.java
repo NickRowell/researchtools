@@ -197,6 +197,15 @@ public class RangeMap<T> {
 	}
 	
 	/**
+	 * Retrieve the full array of {@link Range}s.
+	 * @return
+	 * 	The full array of {@link Range}s.
+	 */
+	public Range[] getRanges() {
+		return ranges;
+	}
+	
+	/**
 	 * Add the object to the {@link Collection} corresponding to the {@link Range} containing
 	 * the given key.
 	 * @param key

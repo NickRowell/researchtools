@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -22,6 +23,12 @@ public class ParseUtil {
 	 */
 	public static final String whitespaceDelim = "\\s+";
 
+	/**
+	 * List of Strings containing just the hash symbol, for use with the
+	 * {@link ParseUtil#parseFile(BufferedReader, String, List)} method.
+	 */
+	public static final List<String> hashComment = new LinkedList<String>(Arrays.asList("#"));
+	
 	/**
 	 * A {@link NumberFormat} used to format large numbers for display as strings.
 	 */
@@ -111,9 +118,12 @@ public class ParseUtil {
 	 * 
 	 * @param in
 	 * 	A {@link BufferedReader} open on the file to parse.
+	 * @param delimiter
+	 * 	String containing the regex expression used to split lines in the input file into tokens. To split on
+	 * any amount of white space, pass in {@link ParseUtil#whitespaceDelim}.
 	 * @param comments
 	 * 	A {@link List<String>} containing comment characters/strings. Lines that start with, or whose first column contains,
-	 * an entry in this list is ignored as a comment line.
+	 * an entry in this list is ignored as a comment line. To use just the hash symbol, pass in {@link ParseUtil#hashComment}.
 	 * @return
 	 * 	A 2D array containing the tabulated data parsed from the file. The leading index is the column number, the
 	 * trailing index is the row number; so the array data[0] contains the column 0 entries for each row in sequence.

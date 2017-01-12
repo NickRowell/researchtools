@@ -26,22 +26,44 @@ package numeric.data;
 public class Histogram2D {
 
     // Data range in first coordinate
-    protected double MIN_X;
-    protected double MAX_X;
-    protected double MIN_Y;
-    protected double MAX_Y;    
-    // Bin width
-    protected double BIN_WIDTH_X;
-    protected double BIN_WIDTH_Y;    
+    protected double xMin;
+    protected double xMax;
+    protected double xStep;
+    
+    protected double yMin;
+    protected double yMax;
+    protected double yStep;
+    
+    // Number of bins
+    protected int xSteps;
+    protected int ySteps;
+    
     // Outliers trimmed (true) or placed in extreme bins (false)
     protected boolean TRIM;
-    // Number of bins
-    protected int N_X;
-    protected int N_Y;
+   
     // 2D array to accumulate histogram results
     protected double[][] HIST;
 
-    /** Main constructor */
+    /**
+     * Main constructor.
+     * 
+     * @param min_x
+     * 	Lower limit of the X coordinate range
+     * @param max_x
+     * 	Upper limit of the X coordinate range
+     * @param delta_x
+     * 	Step size for the X coordinates; if there's not a whole number of steps within the defined range then
+     * the final bin is omitted
+     * @param min_y
+     * 	Lower limit of the Y coordinate range
+     * @param max_y
+     * 	Upper limit of the Y coordinate range
+     * @param delta_y
+     * 	Step size for the Y coordinates; if there's not a whole number of steps within the defined range then
+     * the final bin is omitted
+     * @param trim
+     * 	Outliers trimmed (true) or placed in extreme bins (false)
+     */
     public Histogram2D(double min_x, double max_x, double delta_x, 
                        double min_y, double max_y, double delta_y, 
                        boolean trim){
@@ -51,20 +73,20 @@ public class Histogram2D {
         assert(min_y < max_y && delta_y > 0);
         
         // Range & bins in X
-        MIN_X   = min_x;
-        MAX_X   = max_x;
-        BIN_WIDTH_X = delta_x;
+        xMin   = min_x;
+        xMax   = max_x;
+        xStep = delta_x;
         // Range & bins in Y
-        MIN_Y   = min_y;
-        MAX_Y   = max_y;
-        BIN_WIDTH_Y = delta_y;        
+        yMin   = min_y;
+        yMax   = max_y;
+        yStep = delta_y;        
         
         TRIM  = trim;
 
-        N_X = (int)Math.rint((MAX_X-MIN_X)/BIN_WIDTH_X);
-        N_Y = (int)Math.rint((MAX_Y-MIN_Y)/BIN_WIDTH_Y);
+        xSteps = (int)Math.rint((xMax-xMin)/xStep);
+        ySteps = (int)Math.rint((yMax-yMin)/yStep);
         
-        HIST = new double[N_X][N_Y];
+        HIST = new double[xSteps][ySteps];
 
     }
 
@@ -75,12 +97,12 @@ public class Histogram2D {
     public void add(double X, double Y, double QUANTITY){
 
         // If point lies outside range and outliers are discarded, return now.
-        if((X<MIN_X || X>MAX_X || Y<MIN_Y || Y>MAX_Y) && TRIM)
+        if((X<xMin || X>xMax || Y<yMin || Y>yMax) && TRIM)
             return;       
         
         // Get bin number
-        int BIN_X = (int)Math.floor((X-MIN_X)/BIN_WIDTH_X);
-        int BIN_Y = (int)Math.floor((Y-MIN_Y)/BIN_WIDTH_Y);
+        int BIN_X = (int)Math.floor((X-xMin)/xStep);
+        int BIN_Y = (int)Math.floor((Y-yMin)/yStep);
 
         add(BIN_X, BIN_Y, QUANTITY);
 
@@ -90,9 +112,9 @@ public class Histogram2D {
 
         // Move outliers to closest bin
         if(BIN_X<0) BIN_X=0;
-        if(BIN_X>N_X-1) BIN_X=N_X-1;
+        if(BIN_X>xSteps-1) BIN_X=xSteps-1;
         if(BIN_Y<0) BIN_Y=0;
-        if(BIN_Y>N_Y-1) BIN_Y=N_Y-1;
+        if(BIN_Y>ySteps-1) BIN_Y=ySteps-1;
         
         // Accumulate bin
         HIST[BIN_X][BIN_Y]+=QUANTITY;
@@ -109,32 +131,32 @@ public class Histogram2D {
     }
     
     /** Get total number of bins. */
-    public int getN(){ return N_X*N_Y;}
+    public int getN(){ return xSteps*ySteps;}
     /** Get number of X bins. */
-    public int getNX(){ return N_X;}
+    public int getNX(){ return xSteps;}
     /** Get number of Y bins. */
-    public int getNY(){ return N_Y;}
+    public int getNY(){ return ySteps;}
     
     /** Get centred bin coordinate */
     public double[] getBinCentre(int BIN_X, int BIN_Y){
-        return new double[]{(MIN_X + (double)BIN_X*BIN_WIDTH_X + (BIN_WIDTH_X/2.0)),
-                            (MIN_Y + (double)BIN_Y*BIN_WIDTH_Y + (BIN_WIDTH_Y/2.0))};
+        return new double[]{(xMin + (double)BIN_X*xStep + (xStep/2.0)),
+                            (yMin + (double)BIN_Y*yStep + (yStep/2.0))};
     }
     /** Get lower boundary of bin in X direction. */
     public double getBinLowerEdgeX(int BIN_X){
-        return (MIN_X + (double)BIN_X*BIN_WIDTH_X);
+        return (xMin + (double)BIN_X*xStep);
     }
     /** Get lower boundary of bin in Y direction. */
     public double getBinLowerEdgeY(int BIN_Y){
-        return (MIN_Y + (double)BIN_Y*BIN_WIDTH_Y);
+        return (yMin + (double)BIN_Y*yStep);
     }
     /** Get upper boundary of bin in X direction. */
     public double getBinUpperEdgeX(int BIN_X){
-        return (MIN_X + (double)BIN_X*BIN_WIDTH_X + BIN_WIDTH_X);
+        return (xMin + (double)BIN_X*xStep + xStep);
     }
     /** Get upper boundary of bin in Y direction. */
     public double getBinUpperEdgeY(int BIN_Y){
-        return (MIN_Y + (double)BIN_Y*BIN_WIDTH_Y + BIN_WIDTH_Y);
+        return (yMin + (double)BIN_Y*yStep + yStep);
     }   
 
     
@@ -240,7 +262,7 @@ public class Histogram2D {
         double integral = 0.0;
         for(double[] HIST_X : HIST)
             for(double binContents : HIST_X)
-                integral += binContents * BIN_WIDTH_X * BIN_WIDTH_Y;
+                integral += binContents * xStep * yStep;
         return integral;
     }
     
