@@ -1,7 +1,7 @@
 package util;
 
 /**
- * Static fields for different unusual characters.
+ * Static fields for different unusual Unicode characters.
  *
  * @author nrowell
  * @version $Id$
@@ -37,5 +37,10 @@ public class CharUtil {
 	 * Triangular bullet point.
 	 */
 	public static final String bullet_triangle = "\u2023";
+	
+	/**
+	 * Angstrom symbol.
+	 */
+	public static final String angstroms = "\u212B";
 	
 }
