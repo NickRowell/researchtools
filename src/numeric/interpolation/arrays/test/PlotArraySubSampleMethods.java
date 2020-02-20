@@ -109,26 +109,24 @@ public class PlotArraySubSampleMethods extends JPanel
 				+ " '-'  w l t 'Cubic Spline', "
 				+ " '-'  w l t 'Quadratic Spline'\n");
 		
-		for(int i=0; i<input.length; i++)
+		for(int i=0; i<input.length; i++) {
 			script.append(i+"\t"+input[i]/subSampleFactor+"\n");
+		}
 		script.append("e\n");
 		
-		for(int i=0; i<constantSubSample.length; i++)
-		{
+		for(int i=0; i<constantSubSample.length; i++) {
 			double x = (double)i/(double)subSampleFactor;
 			script.append(x+"\t"+constantSubSample[i]+"\n");
 		}
 		script.append("e\n");
 		
-		for(int i=0; i<cubicSubSample.length; i++)
-		{
+		for(int i=0; i<cubicSubSample.length; i++) {
 			double x = (double)i/(double)subSampleFactor;
 			script.append(x+"\t"+cubicSubSample[i]+"\n");
 		}
 		script.append("e\n");
 		
-		for(int i=0; i<quadraticSubSample.length; i++)
-		{
+		for(int i=0; i<quadraticSubSample.length; i++) {
 			double x = (double)i/(double)subSampleFactor;
 			script.append(x+"\t"+quadraticSubSample[i]+"\n");
 		}

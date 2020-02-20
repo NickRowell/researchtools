@@ -20,6 +20,7 @@ package images;
 import Jama.EigenvalueDecomposition;
 import Jama.Matrix;
 import numeric.geom.dim3.Vector3d;
+import numeric.stats.StatUtil;
 import numeric.vision.Correspondence_2D_2D_3D;
 import numeric.vision.FundamentalMatrix;
 import numeric.vision.Point2D;
@@ -347,7 +348,18 @@ public abstract class Rendering {
     }
     
     /**
-     * Method to draw confidence ellipse from 2D covariance matrix
+     * Draws a confidence ellipse into an image, parameterised by the given covariance matrix and sigmas threshold.
+     * 
+     * @param rgb
+     * 	The {@link BufferedImage} into which the ellipse is to be drawn.
+     * @param position
+     * 	The (i,j) position of the ellipse centre.
+     * @param covariance
+     * 	The 2x2 covariance matrix.
+     * @param sigmas
+     * 	The number of sigmas at which to draw the confidence ellipse.
+     * @param colour
+     * 	The 24-bit RGB colour of the ellipse.
      */
     public static void drawConfidenceEllipse(BufferedImage rgb, int[] position, Matrix covariance, double sigmas, int colour) {
         
@@ -358,51 +370,27 @@ public abstract class Rendering {
         double s_p = Math.sqrt(evd.getD().get(0,0))*sigmas;
         double s_q = Math.sqrt(evd.getD().get(1,1))*sigmas;       
         
-        // Eigenvector matrix for principal axes frame
-        Matrix V = evd.getV();
-                
-        // Ensure eigenvector matrix can be used as rotation matrix: check if
-        // determinant is minus one (in which case matrix is a roto-reflection)
-        // and change sign of one column if so.
-        if(V.det()<0){
-            
-            Matrix correct = new Matrix(new double[][]{{-1.0, 1.0},
-                                                       {-1.0, 1.0}});
-        
-            V.arrayTimesEquals(correct);       
-        }
-        
         // Set angular step size so that distance travelled round circumference
         // is max one pixel (occurs at the major axis).
-        double ang_step = Math.asin(1.0/Math.max(s_p,s_q));
-        double c_ang,s_ang,r;
-        int i,j;
-                
-        for(double ang = 0; ang < 2.0*Math.PI; ang += ang_step){
+        double ang_step = Math.asin(1.0/Math.max(s_p, s_q));
+        int nPoints = (int)Math.floor(2.0 * Math.PI / ang_step) + 1;
         
-            c_ang = Math.cos(ang);
-            s_ang = Math.sin(ang);
-            
-            // Get radius of ellipse at this angle
-            r = s_p*s_q/Math.sqrt(s_p*s_p*s_ang*s_ang + s_q*s_q*c_ang*c_ang);
-
-            // Convert to cartesian coordinates and store as column vector.
-            Matrix X = new Matrix(new double[][]{{r*c_ang},{r*s_ang}});
+        double[] posDouble = new double[]{position[0], position[1]};
+        double[][] points = StatUtil.getConfidenceEllipsePoints(posDouble, covariance, sigmas, nPoints);
         
-            // Rotate back to image frame
-            X = V.times(X);
-                        
-            // Get pixel coordinates by adding mean position.
-            i = position[0] + (int)Math.rint(X.get(0,0));
-            j = position[1] + (int)Math.rint(X.get(1,0));
+        for(int i=0; i<nPoints; i++){
+        
+        	int x = (int)Math.rint(points[i][0]);
+        	int y = (int)Math.rint(points[i][1]);
             
             // Now try drawing this pixel in image.
-            try { rgb.setRGB(i, j, colour);}
-            catch (ArrayIndexOutOfBoundsException aioobe) {}            
-            
-        }        
-    
-    
+            try {
+            	rgb.setRGB(x, y, colour);
+            }
+            catch (ArrayIndexOutOfBoundsException aioobe) {
+            	// Overshot image boundary
+            } 
+        }
     }
     
     /**

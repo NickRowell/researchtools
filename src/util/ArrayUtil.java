@@ -124,7 +124,7 @@ public class ArrayUtil {
      * @return  
      * 	true if x shows monotonic increase, false otherwise.
      */
-    public static final boolean checkIncreasing(double[] x){
+    public static final boolean checkIncreasing(double[] x) {
         for(int l=0; l<x.length-1; l++) {
             if(x[l] >= x[l+1]) {
                 return false;
@@ -194,5 +194,51 @@ public class ArrayUtil {
         // Test passed
         return true;
     }
-    
+
+	/**
+	 * Reverses the order of the 1D array elements.
+	 * 
+	 * @param array
+	 * 	The array to reverse.
+	 */
+	public static void reverse1D(double[] array) {
+		for(int i=0; i<array.length/2; i++) {
+			// Swap elements with indices i and array.length - i - 1. For odd length arrays the central
+			// element will be left untouched.
+			double tmp = array[i];
+			array[i] = array[array.length - i - 1];
+			array[array.length - i - 1] = tmp;
+		}
+	}
+
+	/**
+	 * Reverses the order of the 2D array elements optionally along one or both dimensions.
+	 * 
+	 * @param array
+	 * 	The array to reverse.
+	 * @param dim1
+	 * 	If true then the array is reversed in the first dimension.
+	 * @param dim2
+	 * 	If true then the array is reversed in the second dimension.
+	 */
+	public static void reverse2D(double[][] array, boolean dim1, boolean dim2) {
+		
+		if(dim2) {
+			// Reflect in second dimension (columns)
+			for(int i=0; i<array.length; i++) {
+				reverse1D(array[i]);
+			}
+		}
+		
+		if(dim1) {
+			// Reflect in first dimension (rows)
+			for(int j=0; j<array[0].length; j++) {
+				for(int i=0; i<array.length/2; i++) {
+					double tmp = array[i][j];
+					array[i][j] = array[array.length - i - 1][j];
+					array[array.length - i - 1][j] = tmp;
+				}
+			}
+		}
+	}
 }

@@ -237,5 +237,18 @@ public class RangeMap<T> {
 	public int size() {
 		return objectsMap.size();
 	}
+	
+	/**
+	 * Get the number of objects stored in the {@link RangeMap}.
+	 * @return
+	 * 	The number of objects stored in the {@link RangeMap}.
+	 */
+	public int numberOfObjects() {
+		int n=0;
+		for(Collection<T> objects : objectsMap.values()) {
+			n += objects.size();
+		}
+		return n;
+	}
     
 }

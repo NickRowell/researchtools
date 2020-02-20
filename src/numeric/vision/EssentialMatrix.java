@@ -582,8 +582,8 @@ public class EssentialMatrix extends LevenbergMarquardt {
         
         
         // Configure LM algorithm
-        setEXIT_TOL(1E-92);
-        setMAX_DAMP(1E32);
+        setExitTolerance(1E-92);
+        setMaxDamping(1E32);
         
         // Use Levenberg-Marquardt algorithm to improve solution for
         // P' and the triangulated 3D locations of all points.

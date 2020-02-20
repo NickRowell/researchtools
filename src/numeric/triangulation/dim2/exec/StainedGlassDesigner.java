@@ -39,13 +39,13 @@ public class StainedGlassDesigner extends JPanel {
 	/**
 	 * Output directory for images.
 	 */
-	private static File outputDir = new File("/home/nrowell/Temp/");
+	private static File outputDir = new File("/home/nrowell/Temp/tmp/");
 
-	// Size of square image to render
-	static final int width  = 480;
-	static final int height = 480;
+	// Size of square image to save to disk
+	static final int width  = 250;
+	static final int height = 525;
 	
-	// Randomly generate a set of n points to triangulate
+	// Number of points to generate for RANDOM
 	static int n = 8;
 	
 	// Box within which to randomly distribute the points
@@ -53,18 +53,18 @@ public class StainedGlassDesigner extends JPanel {
 	static double xmax = width;
 	// Step size between point centres in x direction
 	static int xVerts = 4;
-	static double xstep = width/xVerts;
+	static double xstep = xmax/xVerts;
 	
 	
 	static double ymin = 0;
 	static double ymax = height;
 	// Step size between point centres in y direction
 	static int yVerts = 4;
-	static double ystep = height/yVerts;
+	static double ystep = ymax/yVerts;
 	
 	// Size of random displacement
-	static double sigma = 20.0;
-	
+	static double sigma_x = 15.0;
+	static double sigma_y = 25.0;
 	
 	/**
 	 * Colours used to paint the Delaunay Triangulation.
@@ -185,7 +185,6 @@ public class StainedGlassDesigner extends JPanel {
     			br.setImage(tessWireframeIm);
             }
         });
-		
 	}
 	
 	/**
@@ -242,8 +241,8 @@ public class StainedGlassDesigner extends JPanel {
 				Random rnd = new Random();
 				for(double x = xmin+xstep; x<xmax-xstep; x+=xstep) {
 					for(double y = ymin+ystep; y<ymax-ystep; y+=ystep) {
-						double randx = rnd.nextGaussian()*sigma;
-						double randy = rnd.nextGaussian()*sigma;
+						double randx = rnd.nextGaussian()*sigma_x;
+						double randy = rnd.nextGaussian()*sigma_x;
 						Vector2d vec = new Vector2d(x+randx, y+randy);
 						points.add(vec);
 					}

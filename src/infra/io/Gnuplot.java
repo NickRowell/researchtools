@@ -15,9 +15,6 @@
  */
 package infra.io;
 
-import infra.gui.IPanel;
-import infra.os.OSChecker;
-
 import java.awt.BorderLayout;
 import java.awt.image.BufferedImage;
 import java.io.BufferedWriter;
@@ -28,6 +25,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.swing.JFrame;
+
+import infra.gui.IPanel;
+import infra.os.OSChecker;
+import util.GuiUtil;
 
 /**
  * Class provides a simple, clean interface to GNUplot and methods to execute scripts, return plots
@@ -165,10 +166,14 @@ public class Gnuplot
                         @Override
                         public void run() 
                         {
-                            JFrame tester = new JFrame();
+                            final JFrame tester = new JFrame();
                             tester.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
                             tester.setLayout(new BorderLayout());
                             tester.add(ipanel, BorderLayout.CENTER);
+                            
+                            // Add right-click menu allowing displayed image to be saved to file
+                            GuiUtil.addRightClickMenuSaveJPanelImage(tester, ipanel);
+                            
                             tester.pack();
                             tester.setVisible(true);
                         }

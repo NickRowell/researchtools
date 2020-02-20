@@ -139,4 +139,5 @@ public class LevenbergMarquardtExponentialFitter extends LevenbergMarquardt {
 		
 		return jac;
 	}
+	
 }

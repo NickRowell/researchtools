@@ -2,8 +2,6 @@ package numeric.transforms;
 
 import numeric.complex.Complex;
 
-
-
 /**
  * Computes the 2d Fourier transform using Cooley-Tukey FFT algorithm.
  * 

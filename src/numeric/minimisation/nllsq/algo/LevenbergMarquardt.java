@@ -6,53 +6,52 @@ import Jama.Matrix;
  * Implementation of the Levenberg-Marquardt nonlinear least squares algorithm.
  * 
  * In order to use this class you must extend it and implement the getModel(Matrix params)
- * method.
+ * method and optionally the getJacobian(double[] params) method. If you would like the
+ * fitter to use a numerical approximation to the Jacobian instead then override the
+ * {@link #useFiniteDifferencesJacobian()} to return true and also override {@link #finiteDifferencesStepSizePerParam()}
+ * to provide an appropriate step size for each parameter.
  * 
  * Normal usage:
  * 
-  	LevenbergMarquardt lma = new LevenbergMarquardt() {
-  
-  		@Override
-		public double[] getModel(double[] params) {
-			
-			double[] model = new double[N];
-			
-			// Implement the parameters -> model function
-			
-			return model;
-		}
-
-		@Override
-		public double[][] getJacobian(double[] params) {
-			
-			double[][] jac = new double[N][M];
-			
-			// Compute the Jacobian elements
-			
-			return jac;
-		}
-  	}
-  
-  	lma.setData(electronSamples);
-    lma.setCovariance(cov);
-    lma.setInitialGuessParameters(params);
-    // Perform the optimization
-    lma.fit(500, true);
-			        
-	// Extract the solution
-	double[] solution = lma.getParametersSolution();
- * 
- * 
- * 
- * 
- * 
+ *	LevenbergMarquardt lma = new LevenbergMarquardt() {
  *
+ *		@Override
+ *		public double[] getModel(double[] params) {
  *
+ *			double[] model = new double[N];
+ *
+ *			// Implement the parameters -> model function
+ *
+ *			return model;
+ *		}
+ *
+ *		@Override
+ * 		public double[][] getJacobian(double[] params) {
+ *	
+ * 			double[][] jac = new double[N][M];
+ *	
+ *			// Compute the Jacobian elements
+ *	
+ *			return jac;
+ *		}
+ *	}
+ *
+ *	lma.setData(electronSamples);
+ *	lma.setCovariance(cov);
+ *	lma.setInitialGuessParameters(params);
+ *	// Perform the optimization
+ *	lma.fit(500, true);
+ *		        
+ *	// Extract the solution
+ *	double[] solution = lma.getParametersSolution();
+ * 
  * @author nrowell
  * @version $Id$
  */
-public abstract class LevenbergMarquardt{
+public abstract class LevenbergMarquardt {
 
+	public enum STATUS {FAILED_SINGULAR_MATRIX, FAILED_DAMPING_THRESHOLD_EXCEEDED, FAILED_ITERATION_LIMIT_EXCEEDED, NOT_CONVERGED, SUCCESS};
+	
     /** 
      * Absolute step size used in finite difference Jacobian approximation,
      * for Jacobian of parameter solution with respect to data.
@@ -62,14 +61,14 @@ public abstract class LevenbergMarquardt{
     /** 
      * Exit tolerance 
      */
-    private double EXIT_TOL = 1E-32;
+    private double exitTolerance = 1E-32;
 
     /**
      * Max damping scale factor. This is multiplied by automatically selected
      * starting value of damping parameter, which is 10^{-3}
      * times the average of the diagonal elements of J^T*J
      */
-    private double MAX_DAMP = 1E32;
+    private double maxDamping = 1E32;
     
 
     /**
@@ -103,13 +102,13 @@ public abstract class LevenbergMarquardt{
      */
     protected int M;
 
-    
     /**
-     * Set the absolute step size used in the finite difference Jacobian estimation.
-     * @param D
+     * Set the absolute step size used in the finite difference Jacobian estimation for the
+     * calculation of the rate of change of parameters as a function of the data.
+     * @param H
      * 	The finite step size
      */
-    public void setDELTAD(double h)  { 
+    public void setH(double h)  { 
     	this.h   = h;
     }
     
@@ -117,22 +116,22 @@ public abstract class LevenbergMarquardt{
      * Set the exit tolerance - if the (absolute value of the) relative change in the chi-square
      * from one iteration to the next is lower than this, then we're at the minimum and the fit
      * is halted.
-     * @param E
+     * @param exitTolerance
      * 	The exit tolerance to set
      */
-    public void setEXIT_TOL(double E) { 
-    	EXIT_TOL = E;
+    public void setExitTolerance(double exitTolerance) { 
+    	this.exitTolerance = exitTolerance;
     }
     
     /**
      * Set the maximum damping factor. If the damping factor becomes larger than this during the fit,
      * then we're stuck and cannot reach a better solution.
      * 
-     * @param M
+     * @param maxDamping
      * 	The max damping factor to set
      */
-    public void setMAX_DAMP(double M) {
-    	MAX_DAMP = M;
+    public void setMaxDamping(double maxDamping) {
+    	this.maxDamping = maxDamping;
     }
 
     /**
@@ -141,7 +140,7 @@ public abstract class LevenbergMarquardt{
      * 	The Nx1 column vector of observed values
      */
     public void setData(double[] data) {
-    	this.N = data.length;
+    	N = data.length;
     	this.data = new Matrix(N, 1);
     	for(int r=0; r<N; r++) {
     		this.data.set(r, 0, data[r]);
@@ -155,7 +154,7 @@ public abstract class LevenbergMarquardt{
      * 	The Mx1 column vector of initial-guess parameters.
      */
     public void setInitialGuessParameters(double[] params) {
-    	this.M = params.length;
+    	M = params.length;
     	this.params = new Matrix(M, 1);
     	for(int r=0; r<M; r++) {
     		this.params.set(r, 0, params[r]);
@@ -223,6 +222,7 @@ public abstract class LevenbergMarquardt{
     public abstract double[] getModel(double[] params);
     
     private Matrix getModel() {
+    	
     	double[] params = new double[M];
     	for(int i=0; i<M; i++) {
     		params[i] = this.params.get(i, 0);
@@ -256,11 +256,40 @@ public abstract class LevenbergMarquardt{
     public abstract double[][] getJacobian(double[] params);
     
     /**
+     * Implementing classes should override this method to specify whether the fitter should use
+     * the {@link #getJacobian(double[])} method to obtain the Jacobian, or use a finite differences
+     * method in cases where no analytic Jacobian is possible.
+     * 
+     * @return
+     * 	Boolean specifying whether to use the user-provided Jacobian (false) or an internal finite
+     * differences method (true).
+     */
+    public boolean useFiniteDifferencesJacobian() {
+    	return false;
+    }
+    
+    /**
+     * Implementing classes should override this to provide appropriate step sizes per parameter for use
+     * in the finite differences Jacobian approximation, if they intend to use that.
+     * @return
+     * 	Appropriate step size per parameter for use in the finite difference Jacobian approximation.
+     */
+    public double[] finiteDifferencesStepSizePerParam() {
+    	throw new RuntimeException("If the finite differences Jacobian approximation is to be used then "
+    			+ "the finiteDifferencesStepSizePerParam() must be overridden also!");
+    }
+    
+    /**
      * Gets the Jacobian for the current parameters values.
      * 
      * @return
      */
-    private  Matrix getJacobian() {
+    private Matrix getJacobian() {
+    	
+    	if(useFiniteDifferencesJacobian()) {
+    		return getJacobianByFiniteDifferences();
+    	}
+    	
     	double[] params = new double[M];
     	for(int i=0; i<M; i++) {
     		params[i] = this.params.get(i, 0);
@@ -272,130 +301,131 @@ public abstract class LevenbergMarquardt{
      * First order central difference Jacobian approximation. This is the 
      * derivative of the model values with respect to the parameters.
      * 
-     * Jacobian is getDataN() rows by getParametersN() columns.
+     * Jacobian is N rows by M columns.
+     * 
+     * It's elements are the first derivatives of the model with respect to the
+     * parameters, i.e.:
+     * 
+     * J = [ df(x_0, P)/dp_0  df(x_0, P)/dp_1  df(x_0, p)/dp_2  ...  df(x_0, P)/dp_{M-1} ]
+     *     [ df(x_1, P)/dp_0  df(x_1, P)/dp_1  df(x_1, p)/dp_2  ...  df(x_1, P)/dp_{M-1} ]
      * 
      */
-//    public Matrix getJacobian(){
-//        
-//        // Set up Jacobian matrix: getDataN() rows by getParametersN() columns
-//        Matrix jac = new Matrix(getDataN(), getParametersN());
-//
-//        // Get parameter values prior to any tinkering
-//        Matrix p = getParameters();
-//                
-//        // Matrix used to adjust parameters: getParametersN() rows X 1 column
-//        Matrix delta = new Matrix(getParametersN(),1);
-//        
-//        // Get finite step sizes to use for each parameter
-//        Matrix FINITE_STEP = getParametersSteps();
-//
-//        // Iterate over each parameter...
-//        for (int j=0; j<getParametersN(); j++)
-//        {
-//            
-//            // Make 'nudge' vector for this parameter. Set all entries to zero
-//            // except the parameter that is to be adjusted
-//            for (int k=0; k<getParametersN(); k++)
-//              delta.set(k, 0, (k==j) ? FINITE_STEP.get(j,0) : 0.0);
-//              
-//            // First advance this single parameter
-//            setParameters(p.plus(delta));
-//            
-//            // Get model values for advanced parameter set: f(x+h)
-//            Matrix R = getModel(params);
-//
-//            // Build Jacobian by finite difference
-//            for (int i = 0; i < getDataN(); i++)
-//              jac.set(i, j, R.get(i,0));
-//
-//            // Now retard the parameter...
-//            setParameters(p.minus(delta));
-//
-//            // Get model values for retarded parameter set: f(x-h)
-//            R = getModel(params);
-//
-//            // Build Jacobian by finite difference 
-//            for (int i = 0; i < getDataN(); i++)
-//              jac.set(i, j,  (jac.get(i, j) - R.get(i,0)) / (2.0*FINITE_STEP.get(j,0)));
-//
-//        }
-//        
-//        // Return parameters to original values
-//        setParameters(p);
-//        
-//        return jac;
-//
-//    }
-    
+    public Matrix getJacobianByFiniteDifferences() {
+        
+        // Set up Jacobian matrix: N rows by M columns
+        Matrix jac = new Matrix(N, M);
+
+        // Matrix used to adjust parameters: M rows X 1 column
+        Matrix delta = new Matrix(M, 1);
+        
+        // Get finite step sizes to use for each parameter
+        double[] steps = finiteDifferencesStepSizePerParam();
+
+        // Iterate over each parameter...
+        for (int j=0; j<M; j++) {
+        	
+            // Make 'nudge' vector for this parameter. Set all entries to zero
+            // except the parameter that is to be adjusted
+            for (int k=0; k<M; k++) {
+            	delta.set(k, 0, (k==j) ? steps[j] : 0.0);
+            }
+              
+            // First advance this single parameter
+            params.plusEquals(delta);
+            
+            // Get model values for advanced parameter set: f(x+h)
+            Matrix model = getModel();
+
+            // Build Jacobian by finite difference
+            for (int i = 0; i < N; i++) {
+            	jac.set(i, j, model.get(i,0));
+            }
+
+            // Now retard the parameter...
+            params.minusEquals(delta.times(2.0));
+
+            // Get model values for retarded parameter set: f(x-h)
+            model = getModel();
+
+            // Build Jacobian by finite difference 
+            for (int i = 0; i < N; i++) {
+            	jac.set(i, j,  (jac.get(i, j) - model.get(i,0)) / (2.0*steps[j]));
+            }
+            
+            // Return the params to original value
+            params.plusEquals(delta);
+        }
+        
+        return jac;
+    }
     
     /**
-     * Perform LM iteration loop until parameters cannot be improved.
-     *
-     * @param MAX_ITER  Maximum number of allowed iteration before convergence.
-     *
+     * Perform Levenberg-Marquardt parameter fitting until parameters cannot be improved
+     * or maximum number of iterations is reached.
+     * @param maxIter
+     * 	Maximum allowed number of iterations
+     * @param verbose
+     * 	Boolean flag controlling the verbose-ness of the logging
      */
-    public void fit(int MAX_ITER, boolean verbose){
+    public STATUS fit(int maxIter, boolean verbose) {
 
         // Covariance weighted chi-square for current parameter set
         double chi2_initial = getChi2();
         
-        if(verbose) System.out.println("LMA: "+N+" data and "+M+" parameters");
-        if(verbose) System.out.println("LMA: Initial chi2 = "+String.format("%3.3f", chi2_initial));
+        if(verbose) {
+        	System.out.println("LMA: "+N+" data and "+M+" parameters");
+        	System.out.println("LMA: Initial chi2 = "+String.format("%3.3f", chi2_initial));
+        }
                 
-        // get suitable starting value for damping parameter, from 10^{-3}
+        // Get suitable starting value for damping parameter, from 10^{-3}
         // times the average of the diagonal elements of JTWJ:
-        
         Matrix J = getJacobian();
-        
-        // Note use of A.solve(B) method of Jama to get A^{-1}B without
-        // having to invert the covariance matrix.
         Matrix JTWJ = J.transpose().times(dataCovariance.solve(J));
         double L=0;
-        for(int i=0; i<M; i++)
+        for(int i=0; i<M; i++) {
             L += JTWJ.get(i, i);
-        L /= (M*1000.0);
-
-        double[] lambda = {L, 10, L*MAX_DAMP, EXIT_TOL};
-
-        int N_ITER = 0;
-
-        while(!iteration(lambda, verbose) && N_ITER<MAX_ITER){
-
-            // Un-comment the following for very verbose behaviour
-//            chi2 = getChi2();
-//            System.out.println("LMA: Iteration "+N_ITER+
-//                               " complete, " + "residual = "+chi2);
-            
-
-            N_ITER++;
         }
+        L /= (M*1000.0);
+        
+        double[] lambda = {L, 10, L*maxDamping, exitTolerance};
 
-        // Chi-square on exit
-        double chi2_final = getChi2();
+        int nIter = 0;
+        STATUS status;
 
-        if(verbose) System.out.println("LMA: Number of iterations = "+N_ITER);
-        if(verbose) System.out.println("LMA: Final chi2 = "+ String.format("%3.3f", chi2_final));
-        if(verbose) System.out.println("LMA: Reduced chi2 = "+ String.format("%3.3f", getReducedChi2()));
-        if(verbose) System.out.println("LMA: Reduction factor = "+ String.format("%3.3f", chi2_initial/chi2_final)+"\n");        
-
-        return;
-
+        while((status=iteration(lambda, verbose)) == STATUS.NOT_CONVERGED && (nIter++)<maxIter) {
+        	if(verbose) {
+        		System.out.println("LMA: Iteration "+nIter+ " complete, " + "residual = "+getChi2());
+        	}
+        }
+        
+        // Catch 
+        if(status != STATUS.SUCCESS && nIter>=maxIter) {
+        	status = STATUS.FAILED_ITERATION_LIMIT_EXCEEDED;
+        }
+        
+        if(verbose) {
+        	// Chi-square on exit
+        	double chi2_final = getChi2();
+        	System.out.println("LMA: Status = "+status);
+        	System.out.println("LMA: Number of iterations = "+nIter);
+        	System.out.println("LMA: Final chi2 = "+ String.format("%3.3f", chi2_final));
+        	System.out.println("LMA: Reduced chi2 = "+ String.format("%3.3f", getReducedChi2()));
+        	System.out.println("LMA: Reduction factor = "+ String.format("%3.3f", chi2_initial/chi2_final)+"\n");
+        }
+        
+        return status;
     }
 
     /**
      * Each call performs one iteration of parameters.
      *
      * @param   lambda  Damping parameters: element 0 is value of lambda, 1 is boost factor,
-     * 					2 is the max permitted damping, 3 is
-     *                  shrink factor, 4 is exit tolerance on residual change
+     * 					2 is the max permitted damping, 3 is exit tolerance on residual change
      *                  between steps.
      *
-     * @return Boolean  States whether another iteration would be appropriate, or
-     *                  if change in residuals and/or damping thresholds have
-     *                  been reached
+     * @return status of the fit following the current iteration
      */
-    private boolean iteration(double[] lambda, boolean verbose)
-    {
+    private STATUS iteration(double[] lambda, boolean verbose) {
         
         /**
          * Entries of array lambda are as follows:
@@ -417,40 +447,34 @@ public abstract class LevenbergMarquardt{
         // Note use of solve() method to avoid having to invert covariance
         // matrix to get W*(residuals).
         Matrix RHS = J.transpose().times(dataCovariance.solve(getResiduals()));
-
         // Get J^T*W*J
         Matrix JTWJ = J.transpose().times(dataCovariance.solve(J));
-               
         // Change in chi-square from one iteration to the next
         double rrise = 0;
 
-        // Exit status
-        boolean done = true;
-
         // Search for a good step:
-        do
-        {
+        do {
 
             // Make damping matrix
             Matrix L = new Matrix(M,M);
-
-            for (int i=0; i<M; i++)
-                L.set(i, i, lambda[0]);
+            for (int i=0; i<M; i++) {
+                L.set(i, i, lambda[0] * JTWJ.get(i, i));
+            }
 
             // Add this to Grammian
             Matrix LHS = JTWJ.plus(L);
 
             Matrix delta = new Matrix(M,1);
 
-            try
-            {
+            try {
                 delta = LHS.solve(RHS);
             }
-            catch(RuntimeException re)
-            {
-                if(verbose)
+            catch(RuntimeException re) {
+                if(verbose) {
                     System.out.println("LMA: Singular update matrix on exit");
-                return true;
+                }
+                // Convergence indeterminate; no more iterations though
+                return STATUS.FAILED_SINGULAR_MATRIX;
             }
 
             // Adjust parameters...
@@ -465,37 +489,38 @@ public abstract class LevenbergMarquardt{
 
             // Residuals dropped by an amount greater than exit tolerance.
             // Succesful LM iteration. Shrink damping parameter and quit loop.
-            if (rrise < -lambda[3])
-            {
+            if (rrise < -lambda[3]) {
+            	
+            	// Good step!
                 
-                //if(verbose)
-                //    System.out.println("LMA: Good step. New chi2 = "+chi2);
-                // Good step! Want more iterations.
-                done = false;
-                lambda[0] /= lambda[1];
+                if(verbose) {
+                    System.out.println("LMA: Good step. New chi2 = "+chi2);
+                }
                 
-                // Callback method to notify of successful parameter update.
-//                updateCallback();
-                
-                break;
+                // Shrink damping factor, taking care to avoid zeroing it.
+                lambda[0] = Math.max(Double.MIN_VALUE, lambda[0] / lambda[1]);
+
+                // Not converged; want more iterations
+                return STATUS.NOT_CONVERGED;
             }
 
             // Exit tolerance exceeded: residuals changed by a very small
             // amount. We appear to be at the minimum, so keep previous
             // parameters and quit loop. Algorithm cannot find a better value.
-            else if (Math.abs(rrise) < lambda[3])
-            {
+            else if (Math.abs(rrise) < lambda[3]) {
+            	
                 params.minusEquals(delta);
                 
-                //System.out.println("Meh");
                 // Cannot improve parameters - no further iterations
-                if(verbose)
+                if(verbose) {
                     System.out.println("LMA: Residual threshold exceeded.");
-                break;
+                }
+                
+                // Converged
+                return STATUS.SUCCESS;
 
             }
-            else
-            {
+            else {
                 
                 // Bad step (residuals increased)! Try again with larger damping.
                 // Reset parameters to values before previous nudge.
@@ -503,16 +528,22 @@ public abstract class LevenbergMarquardt{
 
                 // Boost damping parameter and try another step.
                 lambda[0] *= lambda[1];
+                
+                if(verbose) {
+                    System.out.println("LMA: Bad step. New lambda = "+lambda[0]);
+                }
             }
             
         }
         // Check damping parameter remains within allowed range
         while (lambda[0]<=lambda[2]);
         
-        if(lambda[0]>lambda[2] && verbose)
+        if(verbose) {
             System.out.println("LMA: Damping threshold exceeded");
+        }
 
-        return done;
+        // Not converged; exceeded damping parameter so don't continue.
+        return STATUS.FAILED_DAMPING_THRESHOLD_EXCEEDED;
     }
 
 
@@ -529,11 +560,11 @@ public abstract class LevenbergMarquardt{
     public double getChi2(){
         
         // Get residuals vector
-        Matrix R = getResiduals();
+        Matrix r = getResiduals();
         
         // Covariance weighted chi-square. Note use of solve() method
         // to avoid having to invert covariance matrix to get weight matrix.
-        return R.transpose().times(dataCovariance.solve(R)).get(0,0);        
+        return r.transpose().times(dataCovariance.solve(r)).get(0,0);        
     
     }
     
@@ -569,9 +600,7 @@ public abstract class LevenbergMarquardt{
                 
         // First order propagation.
         return dpdx.transpose().times(dataCovariance.times(dpdx));
-        
     }
-  
     
     /** 
      * Get the covariance matrix for parameters. This method has been tested
@@ -583,60 +612,53 @@ public abstract class LevenbergMarquardt{
         // Get Jacobian matrix for current parameter set
         Matrix J = getJacobian();  
         
-        // Get inverse of covariance matrix
-        // TODO: shouldn't take the inverse here - use dataCovariance.solve(J) further on...
-        Matrix W = dataCovariance.inverse();
-        
-        // Weighted sum of squared residuals
-        double WSSR = getChi2();
-        
-        // Degrees of freedom
-        double dof = getDOF();
-        
-        //System.out.println("RMS of residuals = "+Math.sqrt(WSSR/dof));
-        
-        // Weight terms in matrix W.
-        W.timesEquals(dof / WSSR);
-        
         // Get J^T*W*J using new weight matrix
-        Matrix JTWJ = J.transpose().times(W).times(J);
+        Matrix JTWJ = J.transpose().times(dataCovariance.solve(J));
+        
+        // Apply scale factor
+        JTWJ.timesEquals(getDOF() / getChi2());
         
         // Invert...
         return JTWJ.inverse();
-    
     }
     
-    
-    /** Get the asymptotic standard error for the parameters */
+    /**
+     * Get the asymptotic standard error for the parameters
+     */
     public Matrix getAsymptoticStandardError(){
         
         // Get covariance matrix for current parameter set
-        Matrix COVAR = getParameterCovariance();        
+        Matrix cov = getParameterCovariance();        
         
-        Matrix STD_ERR = new Matrix(M,1);
+        Matrix err = new Matrix(M,1);
     
-        for(int p=0; p<M; p++)
-            STD_ERR.set(p, 0, Math.sqrt(COVAR.get(p, p)));
+        for(int p=0; p<M; p++) {
+            err.set(p, 0, Math.sqrt(cov.get(p, p)));
+        }
         
-        return STD_ERR;
+        return err;
     }
     
-    /** Get the correlation matrix for the parameters */
-    public Matrix getParameterCorrelation(){
+    /**
+     * Get the correlation matrix for the parameters
+     */
+    public Matrix getParameterCorrelation() {
     
-        Matrix COVAR = getParameterCovariance();
+        Matrix cov = getParameterCovariance();
         
-        Matrix STD_ERR = getAsymptoticStandardError();
+        Matrix err = getAsymptoticStandardError();
         
-        Matrix STD_ERR2 = STD_ERR.times(STD_ERR.transpose());
+        Matrix err2 = err.times(err.transpose());
         
-        Matrix CORR = new Matrix(M,M);
+        Matrix corr = new Matrix(M,M);
     
-        for(int i=0; i<M; i++)
-            for(int j=0; j<M; j++)            
-                CORR.set(i, j, COVAR.get(i, j)/STD_ERR2.get(i, j));
+        for(int i=0; i<M; i++) {
+            for(int j=0; j<M; j++) {
+                corr.set(i, j, cov.get(i, j)/err2.get(i, j));
+            }
+        }
         
-        return CORR;
+        return corr;
     }
     
     /** 
@@ -644,13 +666,13 @@ public abstract class LevenbergMarquardt{
      * parameters solution with respect to the data, useful in estimating the
      * parameters covariance with respect to the data.
      * 
-     * Jacobian is getDataN() rows by getParametersN() columns.
+     * Jacobian is N rows by M columns.
      * 
      * This uses fourth-order central difference approximation for the first
      * derivative.
      * 
      */
-    private Matrix getJacobian_dpdx(){
+    private Matrix getJacobian_dpdx() {
 
         // Set up Jacobian matrix: getDataN() rows by getParametersN() columns
         Matrix jac = new Matrix(N, M);
@@ -666,8 +688,7 @@ public abstract class LevenbergMarquardt{
         Matrix PARAM = params.copy();
 
         // Iterate over each data point...
-        for (int j=0; j<N; j++)
-        {
+        for (int j=0; j<N; j++) {
             
             // Get f(x+2h)
             //
@@ -696,8 +717,9 @@ public abstract class LevenbergMarquardt{
             //
             fit(500,false);
             // -8f(x-h)
-            for (int i = 0; i < M; i++)
+            for (int i = 0; i < M; i++) {
               jac.set(j, i,  jac.get(j, i) - 8.0*params.get(i,0));
+            }
             
             // Get f(x-2h)
             data.plusEquals(delta.times(-1.0));
@@ -721,7 +743,6 @@ public abstract class LevenbergMarquardt{
         }
         
         return jac;
-
     }
 
 }

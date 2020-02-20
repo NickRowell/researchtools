@@ -1,6 +1,4 @@
 /**
- * Copyright (c) 2011 University of Dundee
- *
  * Name:
  * Body.java
  *
@@ -58,8 +56,8 @@ public class Body extends Pose{
 
     /** Setters. */
     public final void setMass(double m){this.mass = m;}
-    public final void setLinearVelocity(Vector3d vel){this.velocity = new Vector3d(vel);}
-    public final void setAngularVelocity(Vector3d angVel){this.angVelocity = new Vector3d(angVel);}
+    public final void setLinearVelocity(Vector3d vel){this.velocity = new Vector3d(vel.getX(), vel.getY(), vel.getZ());}
+    public final void setAngularVelocity(Vector3d angVel){this.angVelocity = new Vector3d(angVel.getX(), angVel.getY(), angVel.getZ());}
 
     /** Getters. */
     public double     getMass(){return this.mass;}
@@ -104,7 +102,7 @@ public class Body extends Pose{
     public void friction(double mag, double dT){
 
         // Get vector in direction of velocity
-        Vector3d fric = new Vector3d(velocity);
+        Vector3d fric = new Vector3d(velocity.getX(), velocity.getY(), velocity.getZ());
 
         // Multiply by negative 1 to make it a braking force
         fric.multEquals(-1);

@@ -4,6 +4,7 @@ package numeric.interpolation.arrays;
 import util.ArrayUtil;
 import Jama.Matrix;
 import numeric.functions.Polynomial;
+import numeric.minimisation.llsq.HouseHolderLeastSquares;
 
 /**
  * Spline interpolation using third order polynomials to interpolate within each element.
@@ -56,8 +57,9 @@ public class CubicSplineArrayInterpolator extends ArrayInterpolator {
 		// x[n] and x[n+1] form the boundaries of segment n, with sample y[n].
 		// This is used if the shifting option is turned off.
 		double[] x = new double[N+1];
-		for(int i=0; i<x.length; i++)
+		for(int i=0; i<x.length; i++) {
 			x[i] = i;
+		}
 		
 		// Build linear equation set a*x = b
 		double[][] a = new double[4*N][4*N];
@@ -240,14 +242,13 @@ public class CubicSplineArrayInterpolator extends ArrayInterpolator {
 		// Solve equation set
 		Matrix A = new Matrix(a);
 		Matrix B = new Matrix(b);
-		Matrix X = A.solve(B);
+//		Matrix X = A.solve(B);
+		// Solution via Householder LSQ
+		Matrix X = new HouseHolderLeastSquares(A,B).x;
 		
 //		A.print(5, 5);
 //		B.print(5, 5);
 //		X.print(5, 5);
-		
-		// Solution via Householder LSQ
-//		X = new HouseHolderLeastSquares(A,B).x;
 		
 		// Extract polynomial coefficients
 		for(int i=0; i<N; i++)

@@ -81,10 +81,11 @@ public class FloatList extends ArrayList<Float>
 		// Get the indices of the two elements closest to this point in the list
 		int lower = (int)Math.floor(percN);
 		int upper = (int)Math.ceil(percN);
+		// Clamp the upper limit to avoid overshooting the array
+		upper = Math.min(upper, N-1);
 		
 		// Take the average of these two points as the percentile
 		return (get(lower) + get(upper))/2.0f;
-		
 	}
 	
 	/**

@@ -42,7 +42,8 @@ public class IPanel extends JPanel
 	 * Default constructor, setting up the border.
 	 */
     public IPanel() {
-    	this.setBorder(BorderFactory.createBevelBorder(BevelBorder.RAISED));
+//    	this.setBorder(BorderFactory.createBevelBorder(BevelBorder.RAISED));
+    	this.setBorder(BorderFactory.createEmptyBorder(0,0,0,0));
     }
     
     /**

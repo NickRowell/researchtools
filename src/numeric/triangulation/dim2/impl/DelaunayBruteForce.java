@@ -4,7 +4,7 @@ import java.util.List;
 
 import numeric.geom.dim2.Circle;
 import numeric.geom.dim2.Vector2d;
-import numeric.stats.Statistics;
+import numeric.stats.StatUtil;
 import numeric.triangulation.dim2.base.DelaunayTriangulation2D;
 
 /**
@@ -63,7 +63,7 @@ public class DelaunayBruteForce extends DelaunayTriangulation2D {
     	if(withLogging) {
 	        // Number of trials in brute force Delaunay triangulation = number of
 	        // ways to select 3 objects from N.
-	        N_TRIALS = Statistics.nChooseM(vertices.size(), 3);
+	        N_TRIALS = StatUtil.nChooseM(vertices.size(), 3);
 	        // Counts all trials
 	        N = 0;
 	        // Number of trials in one percent

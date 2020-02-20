@@ -24,14 +24,14 @@ public class DiscreteFunction1D {
 
         // Sanity checks on array sizes
 		if(binCentres.length != binWidths.length) {
-			throw new IllegalArgumentException("RangeMap: number of bin centres ("+binCentres.length+")"
+			throw new IllegalArgumentException("DiscreteFunction1D: number of bin centres ("+binCentres.length+")"
 					+ " does not equal the number of bin widths ("+binWidths.length+")!");
 		}
 		if(!ArrayUtil.checkIncreasing(binCentres)) {
-			throw new IllegalArgumentException("RangeMap: Bin centres not increasing!");
+			throw new IllegalArgumentException("DiscreteFunction1D: Bin centres not increasing!");
 		}
         if(!ArrayUtil.checkNonOverlappingBins(binCentres, binWidths)) {
-            throw new IllegalArgumentException("RangeMap: Illegal bin centres/sizes.");
+            throw new IllegalArgumentException("DiscreteFunction1D: Illegal bin centres/sizes.");
         }
         
         // Create new array of Bins
@@ -118,8 +118,8 @@ public class DiscreteFunction1D {
     /**
      * Get standard deviation on a bin.
      */
-    public double getBinUncertainty(int BIN) {
-        return bins[BIN].std;
+    public double getBinUncertainty(int bin) {
+        return bins[bin].std;
     }
     
     /**
@@ -127,16 +127,17 @@ public class DiscreteFunction1D {
      */
     public double[] getBinUncertainties() {
         double[] errors = new double[bins.length];
-        for(int b=0; b<bins.length; b++)
+        for(int b=0; b<bins.length; b++) {
             errors[b] = getBinUncertainty(b);
+        }
         return errors;
     }    
     
     /**
      * Get range of independent variable covered by this bin.
      */
-    public double getBinWidth(int BIN) {
-        return bins[BIN].width;
+    public double getBinWidth(int bin) {
+        return bins[bin].width;
     }
     
     /**
@@ -204,14 +205,7 @@ public class DiscreteFunction1D {
             
             double A = perUnit ? bins[i].width : 1.0;
             
-            out.append(getBinCentre(i)).append("\t")
-                                       .append(getBinWidth(i))
-                                       .append("\t")
-                                       .append(getBinContents(i)/A)
-                                       .append("\t")
-                                       .append(getBinUncertainty(i)/A)
-                                       .append("\n");
-
+            out.append(String.format("%.15f\t%.15f\t%.15f\t%.15f\n", getBinCentre(i), getBinWidth(i), getBinContents(i)/A, getBinUncertainty(i)/A));
         }
         return out.toString();
     }   

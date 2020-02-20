@@ -1,21 +1,3 @@
-/**
- * Copyright (c) 2011 University of Dundee
- *
- * Name:
- * Pose.java
- *
- * Purpose:
- * This class represents a 6 degree of freedom position and orientation,
- * and provides methods for transforming vectors between world & body frame,
- * and various other geometry operations.
- * 
- * Language:
- * Java
- *
- * Author:
- * Nicholas Rowell (nickrowell@computing.dundee.ac.uk)
- *
- */
 package numeric.dynamics;
 
 import Jama.Matrix;
@@ -63,7 +45,7 @@ public class Pose
     
     
     /** Set position in world frame. */
-    public final void setPosition(Vector3d pos){this.position = new Vector3d(pos);}
+    public final void setPosition(Vector3d pos){this.position = new Vector3d(pos.getComponents());}
     
     public final void setAttitude(Quaternion att){this.attitude = new Quaternion(att);}
     

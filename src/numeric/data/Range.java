@@ -70,4 +70,12 @@ public class Range {
 	public double width() {
 		return upper - lower;
 	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public String toString() {
+		return "["+lower+":"+upper+"]";
+	}
 }

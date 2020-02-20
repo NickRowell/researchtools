@@ -167,4 +167,5 @@ public class LevenbergMarquardtCosineFitter extends LevenbergMarquardt {
 		
 		return jac;
 	}
+	
 }
