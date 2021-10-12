@@ -39,8 +39,11 @@ public class StainedGlassDesigner extends JPanel {
 	/**
 	 * Output directory for images.
 	 */
-	private static File outputDir = new File("/home/nrowell/Temp/tmp/");
-
+	private static File outputDir = new File("/home/nrowell/Temp/tmp/stained_glass/");
+	
+	int idx=0;
+	Random rnd = new Random();
+	
 	// Size of square image to save to disk
 	static final int width  = 250;
 	static final int height = 525;
@@ -51,20 +54,26 @@ public class StainedGlassDesigner extends JPanel {
 	// Box within which to randomly distribute the points
 	static double xmin = 0;
 	static double xmax = width;
-	// Step size between point centres in x direction
+	
+	// Number of vertices to generate, in X direction
 	static int xVerts = 4;
-	static double xstep = xmax/xVerts;
+	// Step size between point centres in X direction
+	static double xstep = xmax/(xVerts-1);
 	
 	
 	static double ymin = 0;
 	static double ymax = height;
-	// Step size between point centres in y direction
-	static int yVerts = 4;
-	static double ystep = ymax/yVerts;
+	
+	// Number of interior vertices to generate, in Y direction
+	static int yVerts = 6;
+	// Step size between point centres in Y direction
+	static double ystep = ymax/(yVerts-1);
 	
 	// Size of random displacement
 	static double sigma_x = 15.0;
-	static double sigma_y = 25.0;
+	static double sigma_y = 30.0;
+//	static double sigma_x = 1.0;
+//	static double sigma_y = 1.0;
 	
 	/**
 	 * Colours used to paint the Delaunay Triangulation.
@@ -123,7 +132,7 @@ public class StainedGlassDesigner extends JPanel {
 		
 		this.setLayout(new BorderLayout());
 		
-		style = Style.RANDOM;
+		style = Style.SEMI_RANDOM;
 		
 		// Initialise the plots
 		redraw();
@@ -134,7 +143,7 @@ public class StainedGlassDesigner extends JPanel {
 		final IPanel bl = new IPanel(tessColouredIm);
 		final IPanel br = new IPanel(tessWireframeIm);
 		
-		JPanel plotPanel = new JPanel(new GridLayout(2,2));
+		JPanel plotPanel = new JPanel(new GridLayout(1,4));
 		plotPanel.add(tl);
 		plotPanel.add(tr);
 		plotPanel.add(bl);
@@ -157,10 +166,11 @@ public class StainedGlassDesigner extends JPanel {
     		@Override
             public void actionPerformed(ActionEvent evt) {
                 try {
-					ImageIO.write(delColouredIm, "png", new File(outputDir, "delaunay_coloured.png"));
-					ImageIO.write(delWireframeIm, "png", new File(outputDir, "delaunay_wireframe.png"));
-					ImageIO.write(tessColouredIm, "png", new File(outputDir, "voronoi_coloured.png"));
-					ImageIO.write(tessWireframeIm, "png", new File(outputDir, "voronoi_wireframe.png"));
+					ImageIO.write(delColouredIm, "png", new File(outputDir, "delaunay_coloured_"+idx+".png"));
+					ImageIO.write(delWireframeIm, "png", new File(outputDir, "delaunay_wireframe_"+idx+".png"));
+					ImageIO.write(tessColouredIm, "png", new File(outputDir, "voronoi_coloured_"+idx+".png"));
+					ImageIO.write(tessWireframeIm, "png", new File(outputDir, "voronoi_wireframe_"+idx+".png"));
+					idx++;
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -196,32 +206,35 @@ public class StainedGlassDesigner extends JPanel {
 		List<Vector2d> points = new LinkedList<>();
 		
 		// Put vertices on the boundary
-		
-		double xStepBoundary = (xmax - xmin)/ (xVerts-1);
 		for(int xx = 0; xx<xVerts; xx++) {
-			double x = xx*xStepBoundary;
+			double x = xx*xstep;
 			points.add(new Vector2d(x, 0));
 			points.add(new Vector2d(x, height-1));
 		}
-		double yStepBoundary = (ymax - ymin)/ (yVerts-1);
 		for(int yy=1; yy<yVerts-1; yy++) {
-			double y = yy*yStepBoundary;
+			double y = yy*ystep;
 			points.add(new Vector2d(0, y));
 			points.add(new Vector2d(width-1, y));
 		}
 		
+		double border_offset = 100;
+		
 		// Put a ring of vertices outside the boundary in order to fill out the voronoi tessellation 
-		xStepBoundary = ((xmax+100) - (xmin-100))/ (xVerts-1);
-		yStepBoundary = ((ymax+100) - (ymin-100))/ (yVerts-1);
+		double xStepBoundary = ((xmax+border_offset) - (xmin-border_offset))/ (xVerts-1);
+		double yStepBoundary = ((ymax+border_offset) - (ymin-border_offset))/ (yVerts-1);
 		for(int xx = 0; xx<xVerts; xx++) {
-			double x = xx*xStepBoundary;
-			points.add(new Vector2d(x, -100));
-			points.add(new Vector2d(x, height-1 + 100));
+			double x = xx*xStepBoundary - border_offset;
+			double randx = rnd.nextGaussian()*sigma_x;
+			double randy = rnd.nextGaussian()*sigma_y;
+			points.add(new Vector2d(x + randx, -border_offset + randy));
+			points.add(new Vector2d(x + randx, height-1 + border_offset + randy));
 		}
 		for(int yy=1; yy<yVerts-1; yy++) {
-			double y = yy*yStepBoundary;
-			points.add(new Vector2d(-100, y));
-			points.add(new Vector2d(width-1 + 100, y));
+			double y = yy*yStepBoundary - border_offset;
+			double randx = rnd.nextGaussian()*sigma_x;
+			double randy = rnd.nextGaussian()*sigma_y;
+			points.add(new Vector2d(-border_offset + randx, y + randy));
+			points.add(new Vector2d(width-1 + border_offset + randx, y + randy));
 		}
 		
 		switch(style) {
@@ -229,8 +242,8 @@ public class StainedGlassDesigner extends JPanel {
 				{
 					// N randomly distributed points
 					for(int i=0; i<n; i++) {
-						double x = xmin + Math.random()*(xmax - xmin);
-						double y = ymin + Math.random()*(ymax - ymin);
+						double x = xmin + rnd.nextDouble()*(xmax - xmin);
+						double y = ymin + rnd.nextDouble()*(ymax - ymin);
 						Vector2d vec = new Vector2d(x, y);
 						points.add(vec);
 					}
@@ -238,15 +251,30 @@ public class StainedGlassDesigner extends JPanel {
 				}
 			case SEMI_RANDOM:
 			{
-				Random rnd = new Random();
-				for(double x = xmin+xstep; x<xmax-xstep; x+=xstep) {
-					for(double y = ymin+ystep; y<ymax-ystep; y+=ystep) {
+				for(int xIdx=1; xIdx<xVerts-1; xIdx++) {
+					for(int yIdx=1; yIdx<yVerts-1; yIdx++) {
+						double x = xIdx*xstep;
+						double y = yIdx*ystep;
 						double randx = rnd.nextGaussian()*sigma_x;
-						double randy = rnd.nextGaussian()*sigma_x;
+						double randy = rnd.nextGaussian()*sigma_y;
+						
+						// XXX Offset alternate rows by half a step
+						if(yIdx%2==0) {
+							x += xstep/4.0;
+						}
+						else {
+							x -= xstep/4.0;
+						}
+						
 						Vector2d vec = new Vector2d(x+randx, y+randy);
 						points.add(vec);
 					}
 				}
+				
+				// XXX Add point in centre of one of the boxes
+				Vector2d vec = new Vector2d(xmin+1.5*xstep,ymin+2.5*ystep);
+				points.add(vec);
+				
 				break;
 			}
 		}

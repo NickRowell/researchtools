@@ -1,5 +1,7 @@
 package numeric.data;
 
+import java.util.Random;
+
 import util.ArrayUtil;
 
 /**
@@ -277,7 +279,7 @@ public class DiscreteFunction1D {
     /**
      * Treat function like a PDF and draw a random x value from it.
      */
-    public double draw(double a, double b) {
+    public double draw(double a, double b, Random rng) {
         
         // Sanity check on range
         assert b >= a;
@@ -286,7 +288,7 @@ public class DiscreteFunction1D {
         double integral = integrate(a,b)[0];
         
         // Integral of random X point that lies in this range
-        double int_x = integral*Math.random();
+        double int_x = integral * rng.nextDouble();
         
         // Now find what value of X this integral corresponds to
         for(ErrorBin bin : bins)
@@ -319,7 +321,8 @@ public class DiscreteFunction1D {
 }
 
 /**
- * Class representing a single bin containing a value and error.
+ * Class representing a single bin containing a value and error. Errors are represented by the standard deviation.
+ * 
  * @author nickrowell
  */
 class ErrorBin {
@@ -346,6 +349,7 @@ class ErrorBin {
     
     /**
      * Main constructor.
+     * 
      * @param centre
 	 * 	The centre of the bin.
      * @param width
@@ -364,6 +368,7 @@ class ErrorBin {
     
     /**
      * Copy constructor.
+     * 
      * @param copyme
      * 	The instance of {@link ErrorBin} to copy.
      */

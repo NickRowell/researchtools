@@ -107,11 +107,11 @@ public class IPanel extends JPanel
      */
     public void plotGnuplot(File script)
     {
-            // Get plot image from Gnuplot
-            BufferedImage img = Gnuplot.executeScript(script);
-            
-            if(img==null)
-            	return;
-            setImage(img);
+        // Get plot image from Gnuplot
+        BufferedImage img = Gnuplot.executeScript(script);
+        
+        if(img==null)
+        	return;
+        setImage(img);
     }
 }

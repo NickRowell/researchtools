@@ -50,11 +50,15 @@ import Jama.Matrix;
  */
 public abstract class LevenbergMarquardt {
 
-	public enum STATUS {FAILED_SINGULAR_MATRIX, FAILED_DAMPING_THRESHOLD_EXCEEDED, FAILED_ITERATION_LIMIT_EXCEEDED, NOT_CONVERGED, SUCCESS};
+	/**
+	 * Status flags to record final state of algorithm.
+	 */
+	public enum STATUS {FAILED_SINGULAR_MATRIX, FAILED_DAMPING_THRESHOLD_EXCEEDED, FAILED_ITERATION_LIMIT_EXCEEDED, SUCCESS};
 	
     /** 
      * Absolute step size used in finite difference Jacobian approximation,
-     * for Jacobian of parameter solution with respect to data.
+     * for Jacobian of parameter solution with respect to data. This step is
+     * applied to the datapoints not the parameters.
      */
     private double h = 1E-2;   
 
@@ -70,7 +74,6 @@ public abstract class LevenbergMarquardt {
      */
     private double maxDamping = 1E32;
     
-
     /**
      * Nx1 column vector of observed values
      * 
@@ -105,11 +108,12 @@ public abstract class LevenbergMarquardt {
     /**
      * Set the absolute step size used in the finite difference Jacobian estimation for the
      * calculation of the rate of change of parameters as a function of the data.
-     * @param H
-     * 	The finite step size
+     * 
+     * @param h
+     * 	The finite step size (applied to the data, not the parameters).
      */
     public void setH(double h)  { 
-    	this.h   = h;
+    	this.h = h;
     }
     
     /**
@@ -186,7 +190,6 @@ public abstract class LevenbergMarquardt {
     			this.dataCovariance.set(i, j, dataCovariance[i][j]);
     		}
     	}
-    	
     }
     
     /**
@@ -277,6 +280,13 @@ public abstract class LevenbergMarquardt {
     public double[] finiteDifferencesStepSizePerParam() {
     	throw new RuntimeException("If the finite differences Jacobian approximation is to be used then "
     			+ "the finiteDifferencesStepSizePerParam() must be overridden also!");
+    }
+    
+    /**
+     * Callback function that user can override to perform actions when each good step occurs.
+     */
+    public void goodStepCallback() {
+    	// Default action is to do nothing
     }
     
     /**
@@ -387,33 +397,90 @@ public abstract class LevenbergMarquardt {
         }
         L /= (M*1000.0);
         
+        if(verbose) {
+        	System.out.println("LMA: Initial damping parameter L = " + L);
+        }
+        
         double[] lambda = {L, 10, L*maxDamping, exitTolerance};
 
         int nIter = 0;
-        STATUS status;
 
-        while((status=iteration(lambda, verbose)) == STATUS.NOT_CONVERGED && (nIter++)<maxIter) {
+        double chi2 = 0.0;
+        double chi2prev = chi2_initial;
+        
+        // Iterate until fit converges, fails or runs out of iterations
+        while((nIter++) < maxIter) {
+        	
+        	try {
+                chi2 = iteration(lambda, chi2prev, verbose);
+            }
+            catch(RuntimeException re) {
+                if(verbose) {
+                    System.out.println("LMA: Singular update matrix on exit");
+                }
+                // Convergence indeterminate; no more iterations though
+                return STATUS.FAILED_SINGULAR_MATRIX;
+            }
+        	
         	if(verbose) {
-        		System.out.println("LMA: Iteration "+nIter+ " complete, " + "residual = "+getChi2());
+        		System.out.println("LMA: Iteration "+nIter+ " complete");
         	}
+        	
+        	// Check that the damping parameter remains in allowed range
+        	if(lambda[0]>L*maxDamping) {
+	            if(verbose) {
+	                System.out.println("LMA: Damping threshold exceeded");
+	            }
+	
+	            // Not converged; exceeded damping parameter so don't continue.
+	            return STATUS.FAILED_DAMPING_THRESHOLD_EXCEEDED;
+        	}
+        	
+            // Relative change in chi-squared; negative values indicate improvement in fit
+            double rrise = (chi2-chi2prev)/chi2;
+
+            // Residuals dropped by an amount greater than exit tolerance.
+            // Succesful LM iteration. Shrink damping parameter and quit loop.
+            if (rrise < -exitTolerance) {
+            	
+            	// Good step!
+                
+                if(verbose) {
+                    System.out.println("LMA: Good step. New chi2 = "+chi2);
+                }
+                
+                // Callback function
+                goodStepCallback() ;
+                
+                // Shrink damping factor, taking care to avoid zeroing it.
+                lambda[0] = Math.max(Double.MIN_VALUE, lambda[0] / lambda[1]);
+
+                chi2prev = chi2;
+            }
+
+            // Exit tolerance exceeded: residuals changed by a very small
+            // amount. We appear to be at the minimum.
+            else if (Math.abs(rrise) < exitTolerance) {
+            	
+                // Cannot improve parameters - no further iterations
+                if(verbose) {
+                    System.out.println("LMA: Residual threshold exceeded.");
+                }
+                
+                if(verbose) {
+                	// Chi-square on exit
+                	System.out.println("LMA: Number of iterations = "+nIter);
+                	System.out.println("LMA: Final chi2 = "+ String.format("%3.3f", chi2));
+                	System.out.println("LMA: Reduced chi2 = "+ String.format("%3.3f", getReducedChi2()));
+                	System.out.println("LMA: Reduction factor = "+ String.format("%3.3f", chi2_initial/chi2)+"\n");
+                }
+                
+                // Converged
+                return STATUS.SUCCESS;
+            }
         }
         
-        // Catch 
-        if(status != STATUS.SUCCESS && nIter>=maxIter) {
-        	status = STATUS.FAILED_ITERATION_LIMIT_EXCEEDED;
-        }
-        
-        if(verbose) {
-        	// Chi-square on exit
-        	double chi2_final = getChi2();
-        	System.out.println("LMA: Status = "+status);
-        	System.out.println("LMA: Number of iterations = "+nIter);
-        	System.out.println("LMA: Final chi2 = "+ String.format("%3.3f", chi2_final));
-        	System.out.println("LMA: Reduced chi2 = "+ String.format("%3.3f", getReducedChi2()));
-        	System.out.println("LMA: Reduction factor = "+ String.format("%3.3f", chi2_initial/chi2_final)+"\n");
-        }
-        
-        return status;
+    	return STATUS.FAILED_ITERATION_LIMIT_EXCEEDED;
     }
 
     /**
@@ -422,10 +489,13 @@ public abstract class LevenbergMarquardt {
      * @param   lambda  Damping parameters: element 0 is value of lambda, 1 is boost factor,
      * 					2 is the max permitted damping, 3 is exit tolerance on residual change
      *                  between steps.
+     *                  
+     * @param chi2prev
+     * 	Chi-squared for the current parameters.
      *
      * @return status of the fit following the current iteration
      */
-    private STATUS iteration(double[] lambda, boolean verbose) {
+    private double iteration(double[] lambda, double chi2prev, boolean verbose) {
         
         /**
          * Entries of array lambda are as follows:
@@ -436,9 +506,6 @@ public abstract class LevenbergMarquardt {
          * [3] -    Exit tolerance
          */
 
-        // chi-square prior to parameter update
-        double chi2prev = getChi2();
-        
         // Now get Jacobian matrix for current parameters
         Matrix J = getJacobian();
         
@@ -449,9 +516,7 @@ public abstract class LevenbergMarquardt {
         Matrix RHS = J.transpose().times(dataCovariance.solve(getResiduals()));
         // Get J^T*W*J
         Matrix JTWJ = J.transpose().times(dataCovariance.solve(J));
-        // Change in chi-square from one iteration to the next
-        double rrise = 0;
-
+        
         // Search for a good step:
         do {
 
@@ -464,65 +529,27 @@ public abstract class LevenbergMarquardt {
             // Add this to Grammian
             Matrix LHS = JTWJ.plus(L);
 
-            Matrix delta = new Matrix(M,1);
-
-            try {
-                delta = LHS.solve(RHS);
-            }
-            catch(RuntimeException re) {
-                if(verbose) {
-                    System.out.println("LMA: Singular update matrix on exit");
-                }
-                // Convergence indeterminate; no more iterations though
-                return STATUS.FAILED_SINGULAR_MATRIX;
-            }
-
+            Matrix delta = LHS.solve(RHS);
+            
             // Adjust parameters...
             params.plusEquals(delta);
 
             // Get new chi-square statistic
             double chi2 = getChi2();
             
-            // if rrise is negative, then current residuals are lower than
-            // those found on previous step
-            rrise = (chi2-chi2prev)/chi2;
-
-            // Residuals dropped by an amount greater than exit tolerance.
-            // Succesful LM iteration. Shrink damping parameter and quit loop.
-            if (rrise < -lambda[3]) {
+            // XXX
+//            System.out.println("Parameters update:");
+//            System.out.println("dAC rate = " + params.get(0, 0));
+//            System.out.println("dAL rate = " + params.get(1, 0));
+//            System.out.println("dAL rate = " + params.get(0, 0));
+//            System.out.println("chi2 = " + chi2);
+            
+            // Relative change in chi-squared; negative values indicate improvement in fit
+            double rrise = (chi2-chi2prev)/chi2;
+            
+            if(rrise > lambda[3]) {
             	
-            	// Good step!
-                
-                if(verbose) {
-                    System.out.println("LMA: Good step. New chi2 = "+chi2);
-                }
-                
-                // Shrink damping factor, taking care to avoid zeroing it.
-                lambda[0] = Math.max(Double.MIN_VALUE, lambda[0] / lambda[1]);
-
-                // Not converged; want more iterations
-                return STATUS.NOT_CONVERGED;
-            }
-
-            // Exit tolerance exceeded: residuals changed by a very small
-            // amount. We appear to be at the minimum, so keep previous
-            // parameters and quit loop. Algorithm cannot find a better value.
-            else if (Math.abs(rrise) < lambda[3]) {
-            	
-                params.minusEquals(delta);
-                
-                // Cannot improve parameters - no further iterations
-                if(verbose) {
-                    System.out.println("LMA: Residual threshold exceeded.");
-                }
-                
-                // Converged
-                return STATUS.SUCCESS;
-
-            }
-            else {
-                
-                // Bad step (residuals increased)! Try again with larger damping.
+            	// Bad step (residuals increased)! Try again with larger damping.
                 // Reset parameters to values before previous nudge.
             	params.minusEquals(delta);
 
@@ -533,17 +560,15 @@ public abstract class LevenbergMarquardt {
                     System.out.println("LMA: Bad step. New lambda = "+lambda[0]);
                 }
             }
-            
+            else {
+            	return chi2;
+            }
         }
         // Check damping parameter remains within allowed range
         while (lambda[0]<=lambda[2]);
         
-        if(verbose) {
-            System.out.println("LMA: Damping threshold exceeded");
-        }
-
-        // Not converged; exceeded damping parameter so don't continue.
-        return STATUS.FAILED_DAMPING_THRESHOLD_EXCEEDED;
+        // Damping threshold exceeded.
+        return Double.NaN;
     }
 
 
@@ -679,29 +704,25 @@ public abstract class LevenbergMarquardt {
 
         // Matrix used to adjust data: getDataN() rows X 1 column
         Matrix delta = new Matrix(N,1);
-              
-        // Finite difference in terms of absolute change in parameter
-        double FINITE_STEP = h;
-            
+        
         // Current parameter set, used to return parameters to original
         // values once method has completed
-        Matrix PARAM = params.copy();
+        Matrix origParams = params.copy();
 
         // Iterate over each data point...
         for (int j=0; j<N; j++) {
             
             // Get f(x+2h)
-            //
-            for (int k=0; k<N; k++)
-              delta.set(k, 0, (k==j) ? FINITE_STEP : 0.0);            
-            //
+            for (int k=0; k<N; k++) {
+              delta.set(k, 0, (k==j) ? h : 0.0);    
+            }
             data.plusEquals(delta.times(2.0));
-            //
             fit(500,false);
             
             // -f(x+2h)
-            for (int i = 0; i < M; i++)
+            for (int i = 0; i < M; i++) {
               jac.set(j, i, -params.get(i,0));
+            }
 
             // Get f(x+h) 
             data.plusEquals(delta.times(-1.0));
@@ -732,13 +753,13 @@ public abstract class LevenbergMarquardt {
             
             // Divide by step size to complete derivative approximation
             for (int i = 0; i < M; i++)
-              jac.set(j, i, jac.get(j, i) / (12.0*FINITE_STEP));
+              jac.set(j, i, jac.get(j, i) / (12.0*h));
 
             // Return data to its original value
             data.plusEquals(delta.times(2.0));
             
             // Return parameters solution to original value
-            params = PARAM.copy();
+            params = origParams.copy();
 
         }
         

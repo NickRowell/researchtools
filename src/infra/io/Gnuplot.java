@@ -24,9 +24,10 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.swing.ImageIcon;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 
-import infra.gui.IPanel;
 import infra.os.OSChecker;
 import util.GuiUtil;
 
@@ -157,7 +158,7 @@ public class Gnuplot
      */
     public static void displayImage(BufferedImage image) {
     	
-    	final IPanel ipanel = new IPanel(image);
+    	final JLabel label = new JLabel(new ImageIcon(image));
 		
 		// Create and display the form
         java.awt.EventQueue.invokeLater(
@@ -169,10 +170,10 @@ public class Gnuplot
                             final JFrame tester = new JFrame();
                             tester.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
                             tester.setLayout(new BorderLayout());
-                            tester.add(ipanel, BorderLayout.CENTER);
+                            tester.add(label, BorderLayout.CENTER);
                             
                             // Add right-click menu allowing displayed image to be saved to file
-                            GuiUtil.addRightClickMenuSaveJPanelImage(tester, ipanel);
+                            GuiUtil.addRightClickMenuSaveJPanelImage(tester, label);
                             
                             tester.pack();
                             tester.setVisible(true);
