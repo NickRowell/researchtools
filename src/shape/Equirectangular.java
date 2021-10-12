@@ -1,49 +1,95 @@
 package shape;
 
 /**
- *
+ * This class implements the conversion between image coordinates and Mars areocentric coordinates
+ * for a calibrated HiRISE RDR image. Some notes:
+ * 
+ *  - HiRISE is a pushbroom camera and the image coordinates are line (in the direction of motion) 
+ *    and sample (transverse to that).
+ * 
  * @author nickrowell
  */
-public class Equirectangular extends Projection
-{
-    // Offset of image array origin from projection centre [pixels]
-    double LINE_PROJECTION_OFFSET;
-    double SAMPLE_PROJECTION_OFFSET;
+public class Equirectangular extends Projection {
+	
+	/**
+	 * Projection offset parameter for the line coordinate [pixels].
+	 */
+    public final double LINE_PROJECTION_OFFSET;
     
-    // Scale of map [metres/pixel]
-    double MAP_SCALE;
+    /**
+	 * Projection offset parameter for the sample coordinate [pixels].
+	 */
+    public final double SAMPLE_PROJECTION_OFFSET;
     
-    // Centre of projection [radians]
-    double CENTER_LONGITUDE;
-    double CENTER_LATITUDE;
+    /**
+     * Map scale parameter [metres/pixel].
+     */
+    public final double MAP_SCALE;
     
-    // Equatorial and polar radii [km]
-    double A_AXIS_RADIUS;
-    double C_AXIS_RADIUS;
+    /**
+     * Center of projection, longitude parameter [radians].
+     */
+    public final double CENTER_LONGITUDE;
     
+    /**
+     * Center of projection, latitude parameter [radians].
+     */
+    public final double CENTER_LATITUDE;
     
-    public Equirectangular(double pLINE_PROJECTION_OFFSET, double pSAMPLE_PROJECTION_OFFSET,
-                           double pMAP_SCALE, double pCENTER_LONGITUDE, double pCENTER_LATITUDE,
-                           double pA_AXIS_RADIUS, double pC_AXIS_RADIUS)
-    {
-        LINE_PROJECTION_OFFSET   = pLINE_PROJECTION_OFFSET;
-        SAMPLE_PROJECTION_OFFSET = pSAMPLE_PROJECTION_OFFSET;
-        MAP_SCALE                = pMAP_SCALE;
-        CENTER_LONGITUDE         = Math.toRadians(pCENTER_LONGITUDE);
-        CENTER_LATITUDE          = Math.toRadians(pCENTER_LATITUDE);
-        A_AXIS_RADIUS            = pA_AXIS_RADIUS;
-        C_AXIS_RADIUS            = pC_AXIS_RADIUS;
+    /**
+     * Mars equatorial radius parameter [km].
+     */
+    public final double A_AXIS_RADIUS;
+    
+    /**
+     * Mars equatorial radius parameter [km].
+     */
+    public final double C_AXIS_RADIUS;
+    
+    /**
+     * Main constructor accepting the calibration coefficients necessary to transform between
+     * (sample,line) and (longitude,latitude) coordinates.
+     * 
+     * @param LINE_PROJECTION_OFFSET
+	 * 	Projection offset parameter for the line coordinate [pixels].
+     * @param SAMPLE_PROJECTION_OFFSET
+	 * 	Projection offset parameter for the sample coordinate [pixels].
+     * @param MAP_SCALE
+     * 	Map scale parameter [metres/pixel].
+     * @param CENTER_LONGITUDE
+     * 	Center of projection, longitude parameter [degrees].
+     * @param CENTER_LATITUDE
+     * 	Center of projection, latitude parameter [degrees].
+     * @param A_AXIS_RADIUS
+     * 	Mars equatorial radius parameter [km].
+     * @param C_AXIS_RADIUS
+     * 	Mars equatorial radius parameter [km].
+     */
+    public Equirectangular(double LINE_PROJECTION_OFFSET, double SAMPLE_PROJECTION_OFFSET,
+                           double MAP_SCALE, double CENTER_LONGITUDE, double CENTER_LATITUDE,
+                           double A_AXIS_RADIUS, double C_AXIS_RADIUS) {
+    	
+        this.LINE_PROJECTION_OFFSET   = LINE_PROJECTION_OFFSET;
+        this.SAMPLE_PROJECTION_OFFSET = SAMPLE_PROJECTION_OFFSET;
+        this.MAP_SCALE                = MAP_SCALE;
+        this.CENTER_LONGITUDE         = Math.toRadians(CENTER_LONGITUDE);
+        this.CENTER_LATITUDE          = Math.toRadians(CENTER_LATITUDE);
+        this.A_AXIS_RADIUS            = A_AXIS_RADIUS;
+        this.C_AXIS_RADIUS            = C_AXIS_RADIUS;
     }
 
     /**
-     * Calculate indices of sample closest to the specified latitude & 
-     * longitude.
-     * @param lon   Longitude [radians]
-     * @param lat   Latitude  [radians]
+     * Calculate indices of sample closest to the specified latitude and longitude coordinates.
+     * 
+     * @param lon
+     * 	Longitude [radians]
+     * @param lat
+     * 	Latitude [radians]
      * @return 
+     * 	A two-element array containing the corresponding sample and line coordinates.
      */
-    public int[] getLineSampleIndices(double lon, double lat)
-    {
+    public int[] getLineSampleIndices(double lon, double lat) {
+    	
         // Local radius of Mars
         double clat0 = Math.cos(CENTER_LATITUDE);
         double slat0 = Math.sin(CENTER_LATITUDE);
@@ -71,16 +117,24 @@ public class Equirectangular extends Projection
         return new int[]{is,il};
     }
 
-    @Override
-    public double[] getLongLat(int s, int l)
-    {
+    /**
+     * Calculate the longitude and latitude corresponding to the given pixel coordinate. 
+     * 
+     * @param s
+     * 	The sample coordinate [pixels].
+     * @param l
+     * 	The line coordinate [pixels].
+     * @return
+     * 	A two-element array containing the corresponding longitude and latitude coordinates [radians].
+     */
+    public double[] getLongLat(int s, int l) {
+    	
         // Local radius of Mars
         double clat0 = Math.cos(CENTER_LATITUDE);
         double slat0 = Math.sin(CENTER_LATITUDE);
         double Re = A_AXIS_RADIUS;
         double Rp = C_AXIS_RADIUS;
         double R  = Re * Rp / Math.sqrt(Rp*Rp*clat0*clat0 + Re*Re*slat0*slat0);
-        
         
         double xm =  (s - SAMPLE_PROJECTION_OFFSET - 1)*(MAP_SCALE/1000);
         double ym = -(l - LINE_PROJECTION_OFFSET   + 1)*(MAP_SCALE/1000);
@@ -90,5 +144,22 @@ public class Equirectangular extends Projection
         
         return new double[]{lon,lat};
         
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    public String toString() {
+    	
+    	StringBuilder sb = new StringBuilder();
+    	sb.append("[LINE_PROJECTION_OFFSET = " + LINE_PROJECTION_OFFSET + "; ");
+    	sb.append("SAMPLE_PROJECTION_OFFSET = " + SAMPLE_PROJECTION_OFFSET + "; ");
+    	sb.append("MAP_SCALE = " + MAP_SCALE + "; ");
+    	sb.append("CENTER_LONGITUDE = " + CENTER_LONGITUDE + "; ");
+    	sb.append("CENTER_LATITUDE = " + CENTER_LATITUDE + "; ");
+    	sb.append("A_AXIS_RADIUS = " + A_AXIS_RADIUS + "; ");
+    	sb.append("C_AXIS_RADIUS = " + C_AXIS_RADIUS + "]");
+    	
+    	return sb.toString();
     }
 }
